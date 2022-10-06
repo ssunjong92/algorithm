@@ -1,0 +1,411 @@
+// 블랙리스트 IP 등록 (엑셀로)
+public int insertBlacklistIp(List<BlackListVO> list) throws Exception {
+  return getSqlSession().insert(ns + "insertBlacklistIp", list);
+}
+  
+// 블랙리스트 IP 등록 (엑셀로)
+public int insertBlacklistIp(List<BlackListVO> list) throws Exception {
+  return excelUploadDao.insertBlacklistIp(list);
+}
+
+@RequestMapping(value = "/blacklist/ip", method = RequestMethod.POST)
+@ResponseBody
+public Map<String, Object> blacklistIpUpload(HttpServletRequest request, HttpServletResponse response, @RequestParam("file") MultipartFile file) throws Exception {
+logger.info("[블랙 리스트 IP 파일 업로드] " + file.getOriginalFilename());
+Map<String, Object> resultMap = new HashMap<String, Object>();
+int check = 0;
+
+// 파일 업로드 체크		
+if(file != null && fileCheck.excelFileCheck(file)) {
+  String fileName = file.getOriginalFilename();
+  File excelFile = null;
+  if (fileName != null) {
+    // 확장자
+    String extension = FilenameUtils.getExtension(fileName);
+    if (extension.equals("xls") || extension.equals("xlsx")) {
+      try {
+        // File로 변환
+        excelFile = new File(file.getOriginalFilename());
+        excelFile.createNewFile();
+        FileOutputStream fos = new FileOutputStream(excelFile);
+        fos.write(file.getBytes());
+        fos.close();
+
+        // xls일 경우
+        if (extension.equals("xls")) {
+          // xls xlsx 로 변환
+          XSSFWorkbook workbook = excelUploadService.convertXlsToXlsx(excelFile);
+          if (workbook != null) {
+            File newExcelFile = new File(excelFile.getAbsolutePath() + ".xlsx");
+            FileOutputStream out = new FileOutputStream(newExcelFile);
+            workbook.write(out);
+            out.flush();
+            out.close();
+
+            workbook.close();
+
+            excelFile.delete();
+            excelFile = newExcelFile;
+          }
+        }
+
+        // 엑셀 데이터 리스트로 담기
+        List<BlackListVO> list = excelUploadService.dataToListBlacklistIp(excelFile);
+
+        // 블랙 리스트 IP 추가
+        try {
+          if(list.size() > 0) {
+            check = excelUploadService.insertBlacklistIp(list);
+          }
+          else {
+            resultMap.put("msg", "비어있는 파일 입니다.");
+          }
+        } 
+        catch (Exception e) {
+          logger.error(e.getMessage(), e);
+        }
+
+      } catch (Exception e) {
+        logger.error(e.getMessage(), e);
+        resultMap.put("msg", "아래와 같은 에러가 발생 하였습니다. 관리자에게 문의하세요.\n" + e.getMessage());
+      } finally {
+        excelFile.delete();
+      }
+    }
+  }
+}
+else {
+  check = -1;
+  resultMap.put("msg", "업로드 한 파일을 확인해 주시기 바랍니다.");
+}
+
+resultMap.put("check", check);
+return resultMap;
+}
+
+
+
+@Service
+public class FileCheck {
+	private static final Logger logger = LoggerFactory.getLogger(FileCheck.class);
+	
+	@Autowired
+	private FileConfigService fileConfigService;
+	
+	@Value("#{string['xls.mime_type']}")
+	private String xls_mime_type;
+	
+	@Value("#{string['xls.hex_header']}")
+	private String xls_hex_header;
+	
+	@Value("#{string['xlsx.mime_type']}")
+	private String xlsx_mime_type;
+	
+	@Value("#{string['xlsx.hex_header']}")
+	private String xlsx_hex_header;
+	
+	@Value("#{string['file.block.extension']}")
+	private String block_extension;
+	
+	// 엑셀 파일 체크
+	public boolean excelFileCheck(MultipartFile file) throws Exception {
+		logger.info("[엑셀 파일 업로드 체크] " + file.getOriginalFilename());	
+		
+		boolean result = true;
+		
+		//xls
+		List<int[]> xlsSignatureList = new ArrayList<int[]>();
+		xlsSignatureList.add(new int[] { 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 });
+				
+		if(StringUtils.isNoneEmpty(xls_hex_header)) {
+			try {
+				String hexString = null;
+				String[] hexSplit = null;
+				for(int i=0; i<xls_hex_header.split(",").length; i++) {
+					hexString = xls_hex_header.split(",")[i].trim();
+					hexSplit = hexString.split(" ");
+					
+					int [] hex = new int[hexSplit.length];
+					
+					for(int n=0; n<hexSplit.length;n++) {
+						hex[n] = Integer.parseInt(hexSplit[n], 16);
+					}
+					
+					xlsSignatureList.add(hex);
+				}
+			}
+			catch(Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+		//xlsx
+		List<int[]> xlsxSignatureList = new ArrayList<int[]>();
+		xlsxSignatureList.add(new int[] { 0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00 });
+		xlsxSignatureList.add(new int[] { 0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x08 });
+
+		if(StringUtils.isNoneEmpty(xlsx_hex_header)) {
+			try {
+				String hexString = null;
+				String[] hexSplit = null;
+				for(int i=0; i<xlsx_hex_header.split(",").length; i++) {
+					hexString = xlsx_hex_header.split(",")[i].trim();
+					hexSplit = hexString.split(" ");
+					
+					int [] hex = new int[hexSplit.length];
+					
+					for(int n=0; n<hexSplit.length;n++) {
+						hex[n] = Integer.parseInt(hexSplit[n], 16);
+					}
+					
+					xlsxSignatureList.add(hex);
+				}
+			}
+			catch(Exception e) {
+				e.printStackTrace();
+			}
+		}
+		
+		List<int[]> hexSignatureList = new ArrayList<int[]>();
+		
+		String xlsxMimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+		if(StringUtils.isNoneEmpty(xlsx_mime_type)) {
+			xlsxMimeType = xlsx_mime_type.trim();
+		}
+		
+		String xlsMimeType = "application/vnd.ms-excel";
+		if(StringUtils.isNoneEmpty(xls_mime_type)) {
+			xlsMimeType = xls_mime_type.trim();
+		}
+		
+		// 확장자
+		String extension = FilenameUtils.getExtension(file.getOriginalFilename());
+		
+		// 파일 크기 (최대 50M)
+		long maxSize = 50*1024*1024;
+		
+		// 파일 크기 및 확장자 체크
+		if(file.getSize() <= maxSize && (extension.equals("xls") || extension.equals("xlsx"))) {
+			// MIME 체크
+			Path source = Paths.get(file.getOriginalFilename());
+			String mimeType = Files.probeContentType(source);
+			
+			if(xlsxMimeType.equals(mimeType) || xlsMimeType.equals(mimeType) || mimeType == null || mimeType.equals(null)) {
+				if(extension.equals("xls") && xlsMimeType.equals(mimeType)) {
+					hexSignatureList = xlsSignatureList;
+				}
+				else if(extension.equals("xlsx") && xlsxMimeType.equals(mimeType)) {
+					hexSignatureList = xlsxSignatureList;
+				}
+				
+				// 헤더 시그니처 체크
+				int[] hexSignature = null;
+				
+				for(int i=0; i<hexSignatureList.size(); i++) {
+					InputStream is = file.getInputStream();
+					hexSignature = hexSignatureList.get(i);
+				
+					result = true;
+					for(int h=0; h<hexSignature.length; h++) {					
+						
+						// 하나의 헤더 정보가 모두 같은지 체크
+						if(is.read() != hexSignature[h]) {
+							result = false;
+							break;
+						}
+					}
+					
+					// 모두 같은게 존재
+					if(result) {
+						break;
+					}
+				}
+			}
+			else {
+				// MIME Type 실패
+				result = false;
+				logger.error("[엑셀 업로드 실패][MIME Type] " + mimeType);
+			}
+		}
+		else {
+			// 파일 크기 및 확장자 실패
+			result = false;
+			logger.error("[엑셀 업로드 실패][파일 크기 및 확장자 필터] " + extension + ":" + file.getSize());
+		}
+		
+		return result;
+	}
+	
+	// 파일 체크 부분
+	public boolean tableTypeFileCheck(String type, MultipartFile file) throws Exception {
+		boolean result = true;
+		
+		try {
+			String[] headerSplit = null;
+			Path source = Paths.get(file.getOriginalFilename());
+			String mimeType = Files.probeContentType(source);
+			String extension = FilenameUtils.getExtension(file.getOriginalFilename());
+			
+			// 파일 체크 부분
+			// 차단 확장자 체크
+			String blockString = block_extension.replaceAll("[\t| ]", "");
+			blockString = blockString.replaceAll(",", "\n").toLowerCase();
+			String [] blockSplit = blockString.split("\n");
+			
+			if(StringUtils.isNoneEmpty(extension) && Arrays.asList(blockSplit).contains(extension.toLowerCase())) {
+				result = false;
+				logger.error("[업로드 실패][차단 확장자] " + extension);
+			}
+			
+			// 2. DB
+			if(result) {
+				result = false;
+				
+				FileConfigVO vo = new FileConfigVO();
+				vo.setTablename(type);
+				vo.setExtension(extension);
+				List<FileConfigVO> fileConfigList = fileConfigService.selectTablenameExtension(vo);
+				
+				if(fileConfigList.size() > 0) {
+					for(int i=0; i<fileConfigList.size(); i++) {
+						result = false;
+						vo = fileConfigList.get(i);
+						
+						// 크기 체크
+						if(file.getSize() <= vo.getMaxsize()) {
+							result = true;
+							
+							// 헤더 체크
+							if(StringUtils.isNoneEmpty(vo.getHeader())) {					
+								// 파일 스트림
+								InputStream is = file.getInputStream();					
+								headerSplit = vo.getHeader().trim().split(" ");
+								
+								// 헤더 시그니처 체크
+								for(int h=0; h<headerSplit.length; h++) {
+									// 하나의 헤더 정보가 모두 같은지 체크
+									if(is.read() != Integer.parseInt(headerSplit[h], 16)) {
+										result = false;
+										break;
+									}
+								}
+							}
+							
+							if(result) {
+								// MIME Type 체크
+								if(StringUtils.isNoneEmpty(vo.getMimetype())) {
+									result = false;
+									
+									if(mimeType != null && mimeType.equals(vo.getMimetype())) {
+										result = true;
+									}
+									else {
+										logger.error("[업로드 실패][MIME Type] " + mimeType);
+									}
+								}
+							}
+							else {
+								logger.error("[업로드 실패][파일 헤더 다름]");
+							}
+						}
+						else {
+							logger.error("[업로드 실패][파일 크기] " + file.getSize());
+						}
+						
+						// 같은게 존재
+						if(result) {
+							break;
+						}
+					}
+				}
+				else {
+					logger.error("[업로드 실패][등록 된 파일 정보 없음] " + file.getOriginalFilename());
+				}
+			}
+		}
+		catch(Exception e) {
+			result = false;
+			
+			e.printStackTrace();
+		}
+		
+		return result;
+	}
+  
+  
+  
+  
+  	<!-- 블랙리스트 IP 등록 (엑셀로) -->
+	<insert id="insertBlacklistIp" parameterType="BlackListVO">
+		INSERT INTO BLACKLIST (CATEGORYCODE, ATTACKTYPECODE, IPURL, NATION, REASON, SOURCE, ISTICKETING, TICKETSIDX, TYPE, REGDATE) VALUES 
+		<foreach collection="list" item="item" separator=", ">
+			(#{item.categorycode}, #{item.attacktypecode}, #{item.ipurl}, #{item.nation}, #{item.reason}, #{item.source}, #{item.isticketing}, #{item.ticketsidx}, 'ip', #{item.regdate})
+		</foreach>
+	</insert>
+  
+  
+  
+  
+  
+  
+  
+  
+  				<label class="file_upload_button btn-main">
+					<input type="file" id="excelUpload" name="file" accept=".xls, .xlsx">
+					<span>엑셀 Import</span>
+				</label>
+        
+        
+        // 엑셀 업로드
+		$("#excelUpload").change(function(){
+			var ext = $("#excelUpload").val().split(".").pop().toLowerCase();
+			var excelFile = $("#excelUpload")[0].files[0];
+		
+			//확장자 확인
+			if($.inArray(ext, ["xls", "xlsx"]) == -1) {
+				alert('*.xls, *.xlsx, 파일만 업로드 가능합니다.');
+				return false;
+			}
+			else {
+				if(excelFile) {
+					var con = confirm("'" + $("#excelUpload").val() + "' 파일을 업로드 하시겠습니까?");
+					if(con){
+						var formData = new FormData();
+						
+						formData.append('file', excelFile);
+						//업데이트
+						$.ajax({
+							type: 'POST',
+							enctype: 'multipart/form-data',
+							data: formData,
+							contentType: false,
+							processData: false,
+							url: '/member/excelupload/blacklist/ip',
+							beforeSend : function(){
+								$(".lds-ellipsis").show();
+							},
+							complete: function(){
+								$(".lds-ellipsis").hide();
+							},
+							success: function(data) {
+								if(data.check > 0) {
+									alert('정상적으로 업로드 되었습니다.');
+									location.reload();
+								}
+								else if(data.check == -1) {
+									alert(data.msg);
+								}
+								else {
+									console.log(data.msg);
+									alert("정상적으로 업로드되지 않았습니다.");
+								}
+								
+								$("#excelUpload").val("");
+							}
+						});
+					}else{
+						$("#excelUpload").val("");
+					}
+				}
+			}
+		});
