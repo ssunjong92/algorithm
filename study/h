@@ -420,3 +420,159 @@ public class FileCheck {
 // https://filesignatures.net/index.php?page=search
 // https://pythonq.com/so/java/1648337
 }
+
+
+
+package com.tpos.soss.admin.fileconfig;
+
+import com.tpos.soss.config.DatatablesVO;
+
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+
+@Getter
+@Setter
+@ToString
+public class FileConfigVO extends DatatablesVO {
+	private int idx;
+	private String memberid;
+	private String title;
+	private String tablename;
+	private String extension;
+	private String mimetype;
+	private long maxsize;
+	private String isuse;
+	private String header;
+	private String regdate;
+	private String moddate;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+package com.tpos.soss.admin.fileconfig;
+
+import java.util.List;
+
+import org.springframework.stereotype.Repository;
+
+import com.tpos.soss.config.AbstractDAO;
+
+@Repository
+public class FileConfigDAO extends AbstractDAO {
+	private static final String ns = "soss.admin.fileconfig.";
+	
+	// 첨부 파일 정보 리스트
+	public List<FileConfigVO> selectList(FileConfigVO input) throws Exception {
+		return getSqlSession().selectList(ns + "selectList", input);
+	}
+	
+	// 첨부 파일 정보 리스트 카운트
+	public int selectListCount(FileConfigVO input) throws Exception {
+		return getSqlSession().selectOne(ns + "selectListCount", input);
+	}
+	
+	//첨부 파일 정보 불러오기
+	public FileConfigVO select(FileConfigVO input) throws Exception {
+		return getSqlSession().selectOne(ns + "select", input);
+	}
+	
+	//첨부 파일 정보 등록
+	public int insert(FileConfigVO input) throws Exception {
+		return getSqlSession().insert(ns + "insert", input);
+	}
+	
+	//첨부 파일 정보 수정
+	public int update(FileConfigVO input) throws Exception {
+		return getSqlSession().update(ns + "update", input);
+	}
+	
+	//첨부 파일 정보 삭제
+	public int delete(List<FileConfigVO> list) throws Exception {
+		return getSqlSession().delete(ns + "delete", list);
+	}
+	
+	// 첨부 파일 정보 리스트
+	public List<FileConfigVO> selectTablenameExtension(FileConfigVO input) throws Exception {
+		return getSqlSession().selectList(ns + "selectTablenameExtension", input);
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.tpos.soss.admin.fileconfig;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class FileConfigService {
+	@Autowired
+	private FileConfigDAO fileConfigDao;
+	
+	//첨부 파일 정보 리스트
+	public List<FileConfigVO> selectList(FileConfigVO input) throws Exception {
+		return fileConfigDao.selectList(input);
+	}
+	
+	//첨부 파일 정보 리스트 카운트
+	public int selectListCount(FileConfigVO input) throws Exception {
+		return fileConfigDao.selectListCount(input);
+	}
+	
+	//첨부 파일 정보 불러오기
+	public FileConfigVO select(FileConfigVO input) throws Exception {
+		return fileConfigDao.select(input);
+	}
+	
+	//첨부 파일 정보 등록
+	public int insert(FileConfigVO input) throws Exception {
+		return fileConfigDao.insert(input);
+	}
+	
+	//첨부 파일 정보 수정
+	public int update(FileConfigVO input) throws Exception {
+		return fileConfigDao.update(input);
+	}
+	
+	//첨부 파일 정보 삭제
+	public int delete(List<FileConfigVO> list) throws Exception {
+		return fileConfigDao.delete(list);
+	}
+	
+	// 첨부 파일 정보 리스트
+	public List<FileConfigVO> selectTablenameExtension(FileConfigVO input) throws Exception {
+		return fileConfigDao.selectTablenameExtension(input);
+	}
+}
+
+
+
