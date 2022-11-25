@@ -8,13 +8,30 @@ for(int i = 1; i <= n; i++){
     }
 }
 
-이런 경우는 백타 시간 오류... 따라서 sqrt 함수를 사용하자
+이런 경우는 백타 시간 오류... 따라서 sqrt 함수를 사용하자(제곱근 함수)
 
 double x = 25;
 double y = 225;
 
 System.out.println("Math.sqrt(x)=" + Math.sqrt(x));
 System.out.println("Math.sqrt(y)=" + Math.sqrt(y));
+
+즉
+int n = 100; // 입력 값
+int sqrt = (int) Math.sqrt(n); // 100의 제곱근은 10
+ArrayList<Integer> arr = new ArrayList<>(); // 약수 받을 ArrayList
+
+for(int i = 1; i <= sqrt; i++){
+   if(n % i == 0){ // 약수 중 작은 수 저장
+    arr.add(i);
+        if(n / i != i){ // 약수 중 큰 수 저장
+            arr.add(n / i);
+        }
+    }
+}
+// Java 8 이후 사용 가능
+arr.sort(Comparator.naturalOrder());
+System.out.println("오름차순 : " + arr);
 
 
 2. 최대공약수(gcd)
