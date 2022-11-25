@@ -1,0 +1,43 @@
+1. 약수
+
+int n = 100;
+
+for(int i = 1; i <= n; i++){
+	if(n % i == 0){
+    	System.out.println(i + "는 약수 입니다.");
+    }
+}
+
+이런 경우는 백타 시간 오류... 따라서 sqrt 함수를 사용하자
+
+double x = 25;
+double y = 225;
+
+System.out.println("Math.sqrt(x)=" + Math.sqrt(x));
+System.out.println("Math.sqrt(y)=" + Math.sqrt(y));
+
+
+2. 최대공약수(gcd)
+  a) BigInteger 내장함수 사용
+  private static int gcdThing(int a, int b) {
+
+     BigInteger b1 = BigInteger.valueOf(a);
+     BigInteger b2 = BigInteger.valueOf(b);
+     BigInteger gcd = b1.gcd(b2);
+     
+     return gcd.intValue();
+  }
+  
+  b) 재귀함수 사용
+  private static int gcd(int a, int b){
+     if(b == 0) return a;
+     return gcd(b, a % b);
+  }
+ 
+3. 최소공배수(lcm)
+두 수를 곱한다음 최대공약수(gcd)로 나눠주기
+
+public static int lcm(int x, int y) {
+   return (x * y) / gcd(x, y);
+}
+
